@@ -14,7 +14,7 @@ def butter_lowpass_filter(data, cutoff=1500, fs=44100, order=5):
     return lfilter(b, a, data)
 
 # Streamlit UI
-st.title("🎵 Noise Reduction")
+st.title("🎵 DSP-Based Noise Reduction App")
 
 uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3"])
 
