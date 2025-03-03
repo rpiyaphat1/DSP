@@ -4,6 +4,6 @@ soundfile
 matplotlib
 scipy
 numpy
-torch==2.0.1+cpu
-torchaudio==2.0.1+cpu
 demucs
+torch==2.0.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+torchaudio==2.0.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
