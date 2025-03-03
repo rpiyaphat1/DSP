@@ -24,7 +24,7 @@ def demucs_denoise(audio_path, sr):
     return clean_audio.numpy(), sr
 
 # Streamlit UI
-st.title("🎵 AI-Powered Noise Reduction with Demucs")
+st.title("🎵 AI Noise Reduction")
 
 uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3"])
 
