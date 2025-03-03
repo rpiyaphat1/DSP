@@ -7,3 +7,6 @@ numpy
 torch==2.0.1+cpu
 torchaudio==2.0.1+cpu
 demucs
+git add requirements.txt
+git commit -m "Update PyTorch version for CPU support"
+git push origin main
