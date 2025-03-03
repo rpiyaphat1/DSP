@@ -12,15 +12,15 @@ from demucs.apply import apply_model
 model = pretrained.get_model('htdemucs')
 model.cpu().eval()
 
-def separate_audio(audio, sr):
+def remove_noise(audio, sr):
     # Convert audio to tensor
     audio_tensor = torch.tensor(audio).unsqueeze(0)
-    # Apply Demucs model
+    # Apply Demucs model for noise removal
     sources = apply_model(model, audio_tensor, device='cpu', shifts=1)
-    return sources[0, 0].numpy()  # Return only the 'vocals' stem
+    return sources[0, 0].numpy()  # Return only the 'vocals' stem (denoised audio)
 
 # Streamlit UI
-st.title("🎵 AI-Powered Noise Reduction with Demucs")
+st.title("🎵 AI-Powered Noise Removal with Demucs")
 
 uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3"])
 
@@ -36,18 +36,18 @@ if uploaded_file is not None:
     ax.set_title("Original Audio Waveform")
     st.pyplot(fig)
     
-    # Apply Demucs for Noise Reduction
-    filtered_audio = separate_audio(y, sr)
+    # Apply Demucs for Noise Removal
+    denoised_audio = remove_noise(y, sr)
     
     # Show Processed Waveform
     fig, ax = plt.subplots()
-    librosa.display.waveshow(filtered_audio, sr=sr)
-    ax.set_title("Filtered Audio Waveform")
+    librosa.display.waveshow(denoised_audio, sr=sr)
+    ax.set_title("Denoised Audio Waveform")
     st.pyplot(fig)
     
     # Save Processed Audio
-    output_filename = "filtered_audio.wav"
-    sf.write(output_filename, filtered_audio, sr)
+    output_filename = "denoised_audio.wav"
+    sf.write(output_filename, denoised_audio, sr)
     
-    st.success("Processing Complete! 🎉")
-    st.download_button(label="Download Processed Audio", data=open(output_filename, "rb"), file_name="filtered_audio.wav", mime="audio/wav")
+    st.success("Noise Removal Complete! 🎉")
+    st.download_button(label="Download Denoised Audio", data=open(output_filename, "rb"), file_name="denoised_audio.wav", mime="audio/wav")
