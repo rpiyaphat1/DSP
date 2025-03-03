@@ -4,17 +4,23 @@ import librosa
 import librosa.display
 import matplotlib.pyplot as plt
 import soundfile as sf
-from scipy.signal import butter, lfilter
+import torch
+from demucs import pretrained
+from demucs.apply import apply_model
 
-# DSP Functions
-def butter_lowpass_filter(data, cutoff=1500, fs=44100, order=5):
-    nyq = 0.5 * fs
-    normal_cutoff = cutoff / nyq
-    b, a = butter(order, normal_cutoff, btype='low', analog=False)
-    return lfilter(b, a, data)
+# Load Demucs model
+model = pretrained.get_model('htdemucs')
+model.cpu().eval()
+
+def separate_audio(audio, sr):
+    # Convert audio to tensor
+    audio_tensor = torch.tensor(audio).unsqueeze(0)
+    # Apply Demucs model
+    sources = apply_model(model, audio_tensor, device='cpu', shifts=1)
+    return sources[0, 0].numpy()  # Return only the 'vocals' stem
 
 # Streamlit UI
-st.title("🎵 DSP-Based Noise Reduction App")
+st.title("🎵 AI-Powered Noise Reduction with Demucs")
 
 uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3"])
 
@@ -30,8 +36,8 @@ if uploaded_file is not None:
     ax.set_title("Original Audio Waveform")
     st.pyplot(fig)
     
-    # Apply Noise Reduction
-    filtered_audio = butter_lowpass_filter(y)
+    # Apply Demucs for Noise Reduction
+    filtered_audio = separate_audio(y, sr)
     
     # Show Processed Waveform
     fig, ax = plt.subplots()
