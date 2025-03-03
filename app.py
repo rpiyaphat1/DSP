@@ -14,14 +14,20 @@ model = pretrained.get_model(name="htdemucs")
 model.eval()
 
 def demucs_denoise(audio_path, sr):
-    wav, sr = torchaudio.load(audio_path)
-    wav = wav.mean(dim=0, keepdim=True)  # Convert to mono
+    wav, sr = torchaudio.load(audio_path)  # Load audio as (channels, samples)
+    
+    # Convert to stereo if needed
+    if wav.shape[0] == 1:  # If mono, duplicate channel
+        wav = wav.repeat(2, 1)
+    
+    wav = wav.unsqueeze(0)  # Add batch dimension (1, channels, samples)
+    
     with torch.no_grad():
         sources = apply_model(model, wav, device='cpu', split=True)
     
-    # Extract the 'noisy' and 'clean' components (assuming vocals as main sound)
-    clean_audio = sources[0, 0]  # Main separated source (can be customized)
-    return clean_audio.numpy(), sr
+    # Extract the 'vocals' source (this may vary depending on the model)
+    clean_audio = sources[0, 0].numpy()  # Convert to NumPy array
+    return clean_audio, sr
 
 # Streamlit UI
 st.title("🎵 AI Noise Reduction")
