@@ -7,10 +7,10 @@ import soundfile as sf
 from scipy.signal import butter, lfilter
 
 # DSP Functions
-def butter_lowpass_filter(data, cutoff=1500, fs=44100, order=5):
+def butter_highpass_filter(data, cutoff=1500, fs=44100, order=5):
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
-    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    b, a = butter(order, normal_cutoff, btype='high', analog=False)
     return lfilter(b, a, data)
 
 # Streamlit UI
@@ -30,13 +30,13 @@ if uploaded_file is not None:
     ax.set_title("Original Audio Waveform")
     st.pyplot(fig)
     
-    # Apply Noise Reduction
-    filtered_audio = butter_lowpass_filter(y)
+    # Apply High-Pass Noise Reduction
+    filtered_audio = butter_highpass_filter(y)
     
     # Show Processed Waveform
     fig, ax = plt.subplots()
     librosa.display.waveshow(filtered_audio, sr=sr)
-    ax.set_title("Filtered Audio Waveform")
+    ax.set_title("Filtered Audio Waveform (High-Pass)")
     st.pyplot(fig)
     
     # Save Processed Audio
