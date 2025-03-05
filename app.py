@@ -1,12 +1,13 @@
 import streamlit as st
 import torch
-import torch.nn as nn  # ✅ เพิ่มตรงนี้
+import torch.nn as nn
 import librosa
 import numpy as np
 import os
 import scipy.signal as signal
 import scipy.stats
-
+import sounddevice as sd
+import wave
 
 # ✅ โหลดโมเดลที่ Train แล้ว
 class BritishAccentScoreModel(nn.Module):
@@ -49,20 +50,31 @@ def preprocess_audio(file_path, sr=16000, n_mfcc=13):
     mfcc_combined = np.concatenate((mfcc, mfcc_delta), axis=0)
     return np.mean(mfcc_combined, axis=1)  # คืนค่าเฉลี่ย MFCC + Delta MFCC
 
+# ✅ ฟังก์ชันบันทึกเสียงจากไมค์
+def record_audio(filename="recorded_audio.wav", duration=5, sr=16000):
+    st.info("🎤 กำลังบันทึกเสียง... พูดออกมาเลย!")
+    recording = sd.rec(int(duration * sr), samplerate=sr, channels=1, dtype=np.int16)
+    sd.wait()
+    
+    # ✅ บันทึกเป็นไฟล์ WAV
+    with wave.open(filename, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 16-bit PCM
+        wf.setframerate(sr)
+        wf.writeframes(recording.tobytes())
+    
+    st.success("✅ บันทึกเสียงเสร็จแล้ว!")
+    return filename
+
 # ✅ สร้าง Streamlit UI
 st.title("🎤 British Accent Detector")
-st.write("อัปโหลดไฟล์เสียงเพื่อตรวจสอบความใกล้เคียงสำเนียง British")
+st.write("กดปุ่มเพื่อบันทึกเสียง แล้วตรวจสอบความใกล้เคียงสำเนียง British")
 
-uploaded_file = st.file_uploader("อัปโหลดไฟล์เสียง (WAV)", type=["wav"])
-
-if uploaded_file is not None:
-    # ✅ บันทึกไฟล์ชั่วคราว
-    file_path = f"temp_audio.wav"
-    with open(file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+if st.button("🎙️ กดเพื่อบันทึกเสียง (5 วินาที)"):
+    recorded_file = record_audio()
     
     # ✅ ประมวลผลเสียง
-    mfcc_features = preprocess_audio(file_path)
+    mfcc_features = preprocess_audio(recorded_file)
     if mfcc_features is not None:
         # ✅ แปลงเป็น Tensor
         X_test_tensor = torch.tensor(mfcc_features, dtype=torch.float32).unsqueeze(0)
