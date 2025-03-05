@@ -1,10 +1,12 @@
 import streamlit as st
 import torch
+import torch.nn as nn  # ✅ เพิ่มตรงนี้
 import librosa
 import numpy as np
 import os
 import scipy.signal as signal
 import scipy.stats
+
 
 # ✅ โหลดโมเดลที่ Train แล้ว
 class BritishAccentScoreModel(nn.Module):
