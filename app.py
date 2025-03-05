@@ -4,58 +4,46 @@ import librosa
 import librosa.display
 import soundfile as sf
 import matplotlib.pyplot as plt
-from scipy.signal import butter, lfilter
+from scipy.signal import wiener
 import torch
 import torchaudio
 
-# ฟังก์ชันกรองเสียงรบกวนด้วย DSP (Butterworth filter)
-def butter_bandpass(lowcut, highcut, fs, order=5):
-    nyq = 0.5 * fs
-    low = lowcut / nyq
-    high = highcut / nyq
-    b, a = butter(order, [low, high], btype='band')
-    return b, a
+# ฟังก์ชัน Wiener Filter (ลบ noise ได้ดีกว่า bandpass)
+def apply_wiener_filter(y):
+    return wiener(y)
 
-def apply_bandpass_filter(data, lowcut, highcut, fs, order=5):
-    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
-    return lfilter(b, a, data)
-
-# ฟังก์ชันลบเสียงรบกวนด้วย AI (ใช้โมเดลที่ฝึกมา)
-def denoise_with_ai(audio):
-    # โหลดโมเดล AI ที่ฝึกมา (เช่น Denoising Autoencoder)
-    model = torch.jit.load("denoiser_model.pt")
-    model.eval()
-
-    # แปลงเสียงเป็น Tensor
-    audio_tensor = torch.tensor(audio, dtype=torch.float32)
-    denoised_audio = model(audio_tensor)
-    
-    return denoised_audio.detach().numpy()
+# ฟังก์ชัน AI ลบเสียงรบกวน (ใช้โมเดลที่ฝึกไว้)
+def denoise_with_ai(audio, sr):
+    model = torch.hub.load("facebook/demucs", "demucs")  # ใช้โมเดล Demucs
+    audio_tensor = torch.tensor(audio, dtype=torch.float32).unsqueeze(0)
+    with torch.no_grad():
+        denoised_audio = model(audio_tensor)
+    return denoised_audio.squeeze(0).numpy()
 
 # Streamlit UI
-st.title("AI + DSP Noise Reduction App")
-st.write("อัปโหลดไฟล์เสียงที่มีเสียงรบกวนและดูผลลัพธ์หลังจากกรองเสียง")
+st.title("🎵 AI Noise Reduction")
+st.write("🔍 อัปโหลดไฟล์เสียงที่มีเสียงรบกวน แล้วดูผลลัพธ์หลังจากลบ noise!")
 
 # อัปโหลดไฟล์เสียง
-uploaded_file = st.file_uploader("อัปโหลดไฟล์เสียง (.wav)", type=["wav"])
+uploaded_file = st.file_uploader("📤 อัปโหลดไฟล์เสียง (.wav)", type=["wav"])
 
 if uploaded_file:
     # โหลดเสียง
     y, sr = librosa.load(uploaded_file, sr=None)
 
     # แสดงคลื่นเสียงต้นฉบับ
-    st.write("🎵 คลื่นเสียงต้นฉบับ")
+    st.write("🎧 คลื่นเสียงต้นฉบับ")
     fig, ax = plt.subplots()
     librosa.display.waveshow(y, sr=sr, ax=ax)
     st.pyplot(fig)
 
-    # ใช้ DSP Filter
-    y_filtered = apply_bandpass_filter(y, 300, 3400, sr)
+    # ใช้ Wiener Filtering เพื่อลด noise เบื้องต้น
+    y_filtered = apply_wiener_filter(y)
 
-    # ใช้ AI ลบเสียงรบกวน
-    y_denoised = denoise_with_ai(y_filtered)
+    # ใช้ AI ลบเสียงรบกวน (Demucs)
+    y_denoised = denoise_with_ai(y_filtered, sr)
 
-    # แสดงคลื่นเสียงที่ผ่านการลบ Noise
+    # แสดงคลื่นเสียงที่ลบ Noise แล้ว
     st.write("🔇 คลื่นเสียงหลังจากลบ Noise")
     fig, ax = plt.subplots()
     librosa.display.waveshow(y_denoised, sr=sr, ax=ax)
@@ -65,4 +53,3 @@ if uploaded_file:
     output_file = "denoised_output.wav"
     sf.write(output_file, y_denoised, sr)
     st.download_button("📥 ดาวน์โหลดไฟล์เสียงที่ปรับปรุงแล้ว", data=open(output_file, "rb"), file_name="denoised_output.wav")
-
