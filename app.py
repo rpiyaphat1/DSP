@@ -4,6 +4,7 @@ import librosa
 import numpy as np
 import os
 import scipy.signal as signal
+import scipy.stats
 
 # ✅ โหลดโมเดลที่ Train แล้ว
 class BritishAccentScoreModel(nn.Module):
@@ -13,11 +14,12 @@ class BritishAccentScoreModel(nn.Module):
         self.fc2 = nn.Linear(128, 64)
         self.fc3 = nn.Linear(64, 1)  # 1 Output = British Accent Score
         self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.3)  # ✅ ลด Overfitting
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
+        x = self.dropout(self.relu(self.fc2(x)))
         x = self.fc3(x)
         return self.sigmoid(x) * 100  #  British Accent Score (0-100%)
 
@@ -39,12 +41,14 @@ def preprocess_audio(file_path, sr=16000, n_mfcc=13):
     # ✅ Normalization
     y_filtered = y_filtered / np.max(np.abs(y_filtered))
 
-    # ✅ Extract MFCC
+    # ✅ Extract MFCC + Delta MFCC
     mfcc = librosa.feature.mfcc(y=y_filtered, sr=sr, n_mfcc=n_mfcc)
-    return np.mean(mfcc, axis=1)  # คืนค่าเฉลี่ย MFCC Features
+    mfcc_delta = librosa.feature.delta(mfcc)
+    mfcc_combined = np.concatenate((mfcc, mfcc_delta), axis=0)
+    return np.mean(mfcc_combined, axis=1)  # คืนค่าเฉลี่ย MFCC + Delta MFCC
 
 # ✅ สร้าง Streamlit UI
-st.title("Did you have a British accent?")
+st.title("🎤 British Accent Detector")
 st.write("อัปโหลดไฟล์เสียงเพื่อตรวจสอบความใกล้เคียงสำเนียง British")
 
 uploaded_file = st.file_uploader("อัปโหลดไฟล์เสียง (WAV)", type=["wav"])
@@ -63,8 +67,20 @@ if uploaded_file is not None:
         
         # ✅ ทำนาย British Accent Score
         with torch.no_grad():
-            score = model(X_test_tensor).item()
+            score_raw = model(X_test_tensor).item()
         
-        st.success(f"🎯 British Accent Score: {score:.2f}%")
+        # ✅ ปรับค่า Confidence ด้วย Temperature Scaling
+        temperature = 2.5
+        softmax_output = np.exp(score_raw / temperature) / np.sum(np.exp(score_raw / temperature))
+        british_confidence = softmax_output * 100
+        
+        # ✅ คำนวณความใกล้เคียงสำเนียง British
+        british_mean = 90  # ค่าเฉลี่ยของ British Accent
+        british_std = 15   # ส่วนเบี่ยงเบนมาตรฐานของ British Accent
+        british_similarity = scipy.stats.norm.pdf(score_raw, british_mean, british_std)
+        british_similarity_percentage = (british_similarity / np.max(british_similarity)) * 100
+
+        # ✅ แสดงผล
+        st.success(f"🎯 British Accent Similarity: {british_similarity_percentage:.2f}%")
     else:
         st.error("⚠️ ไม่สามารถประมวลผลไฟล์เสียงนี้ได้")
